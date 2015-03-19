@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Ant-Version: Apache Ant 1.9.3
+Created-By: 1.7.0_75-b13 (Oracle Corporation)
+Main-Class: edu.wisc.cs.sdn.vnet.Main
+Class-Path: .
+

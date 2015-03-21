@@ -209,6 +209,9 @@ public class Router extends Device// implements Runnable
 				return;
 		}
 
+		//System.out.println("Target Protocol addr: "+ByteBuffer.wrap(arpPacket.getSenderProtocolAddress()).getShort());
+		//System.out.println("orignal arp: "+arpPacket);
+
 		int targetIp = ByteBuffer.wrap(arpPacket.getTargetProtocolAddress()).getInt();
         	if (targetIp != inIface.getIpAddress())
 			return;
@@ -231,6 +234,8 @@ public class Router extends Device// implements Runnable
 
 		ether.setPayload(arp);
 		ether.serialize();        	
+
+		System.out.println("Sending ARP PACKET********\n"+ether+"\n*******************");
 
 		this.sendPacket(ether, inIface);
 		return;
@@ -280,7 +285,7 @@ public class Router extends Device// implements Runnable
 			else if(protocol == IPv4.PROTOCOL_ICMP){
 				ICMP icmp = (ICMP)ipPacket.getPayload();
 				if(icmp.getIcmpType() == 8){
-					System.out.println("echoing");
+					//System.out.println("echoing");
 					this.sendError(etherPacket, inIface, 0, 0, true);
 				}				
 			}
@@ -363,6 +368,8 @@ public class Router extends Device// implements Runnable
 		Queue nextHopQueue = packetQueues.get(next);
 		nextHopQueue.add(etherPacket);
 
+		final AtomicReference<Queue> atomicQueue = new AtomicReference(nextHopQueue);
+
 		//System.out.println("Sending packets for: "+nextHop);
 		final int nextH = nextHop;	
 
@@ -372,6 +379,7 @@ public class Router extends Device// implements Runnable
     			public void run() {
 	
         			try {
+					System.out.println("Sending ARP PACKET********\n"+atomicEtherPacket.get()+"\n*******************");
 					sendPacket(atomicEtherPacket.get(), atomicIface.get());
             				//System.out.println("1) Checking for "+nextH);
 					Thread.sleep(1000);
@@ -379,7 +387,7 @@ public class Router extends Device// implements Runnable
 						System.out.println("Found it!");
 						return;
 					}
-
+					System.out.println("Sending ARP PACKET********\n"+atomicEtherPacket.get()+"\n*******************");
 					sendPacket(atomicEtherPacket.get(), atomicIface.get());
 					//System.out.println("2) Checking again for" + nextH);
             				Thread.sleep(1000);                
@@ -387,7 +395,7 @@ public class Router extends Device// implements Runnable
                                                 System.out.println("Found it!");
                                                 return;
                                         }
-					
+					System.out.println("Sending ARP PACKET********\n"+atomicEtherPacket.get()+"\n*******************");
 					sendPacket(atomicEtherPacket.get(), atomicIface.get());
 					//System.out.println("3) Checking again for" + nextH);
         				Thread.sleep(1000);
@@ -395,7 +403,12 @@ public class Router extends Device// implements Runnable
                                                 System.out.println("Found it!");
                                                 return;
                                         }
+
+					while(atomicQueue.get() != null && atomicQueue.get().peek() != null){
+                                        	atomicQueue.get().poll();
+                                	}
 					sendError(atomicInPacket.get(), atomicIface.get(), 3, 1, false);
+					return;
 				} catch(InterruptedException v) {
            				 System.out.println(v);
         			}

@@ -195,11 +195,12 @@ public class Router extends Device// implements Runnable
 		if(arpPacket.getOpCode() != ARP.OP_REQUEST){
 			if(arpPacket.getOpCode() == ARP.OP_REPLY){
 				ByteBuffer senderProtocol = ByteBuffer.wrap(arpPacket.getSenderProtocolAddress());
-				atomicCache.get().insert(new MACAddress(arpPacket.getSenderHardwareAddress()), senderProtocol.getInt());					
+				int address = senderProtocol.getInt();
+				atomicCache.get().insert(new MACAddress(arpPacket.getSenderHardwareAddress()), address);					
 			
-				System.out.println("IP addr we're looking at:" + senderProtocol.getInt());
+				System.out.println("IP addr we're looking at:" + address);
 	
-				Queue packetsToSend = packetQueues.get(new Integer(senderProtocol.getInt()));
+				Queue packetsToSend = packetQueues.get(new Integer(address));
 				while(packetsToSend != null && packetsToSend.peek() != null){
 					Ethernet packet = (Ethernet)packetsToSend.poll();
 					packet.setDestinationMACAddress(arpPacket.getSenderHardwareAddress());
@@ -231,7 +232,8 @@ public class Router extends Device// implements Runnable
 		arp.setTargetProtocolAddress(arpPacket.getSenderProtocolAddress());
 
 		ether.setPayload(arp);
-        	
+		ether.serialize();        	
+
 		this.sendPacket(ether, inIface);
 		return;
 	}
@@ -338,8 +340,16 @@ public class Router extends Device// implements Runnable
                 arp.setTargetHardwareAddress(ByteBuffer.allocate(8).putInt(0).array());
                 arp.setTargetProtocolAddress(nextHop);
 
-                etherPacket.setPayload(arp);
-		etherPacket.setDestinationMACAddress("FF:FF:FF:FF:FF:FF");	
+
+		final AtomicReference<Ethernet> atomicEtherPacket = new AtomicReference(new Ethernet());
+		final AtomicReference<Iface> atomicIface = new AtomicReference(outIface);
+		//Ethernet ether = new Ethernet();
+		atomicEtherPacket.get().setEtherType(Ethernet.TYPE_ARP);
+		atomicEtherPacket.get().setSourceMACAddress(inIface.getMacAddress().toBytes());	
+
+                atomicEtherPacket.get().setPayload(arp);
+		atomicEtherPacket.get().setDestinationMACAddress("FF:FF:FF:FF:FF:FF");	
+		atomicEtherPacket.get().serialize();
 
 		Integer next = new Integer(nextHop);
 
@@ -358,19 +368,23 @@ public class Router extends Device// implements Runnable
     			public void run() {
 	
         			try {
+					sendPacket(atomicEtherPacket.get(), atomicIface.get());
             				System.out.println("1) Checking for "+nextH);
 					Thread.sleep(1000);
 					if(atomicCache.get().lookup(nextH) != null){
 						System.out.println("Holy shit we found it!");
 						return;
 					}
+
+					sendPacket(atomicEtherPacket.get(), atomicIface.get());
 					System.out.println("2) Checking again for" + nextH);
             				Thread.sleep(1000);                
                                         if(atomicCache.get().lookup(nextH) != null){
                                                 System.out.println("Holy shit we found it!");
                                                 return;
                                         }
-
+					
+					sendPacket(atomicEtherPacket.get(), atomicIface.get());
 					System.out.println("3) Checking again for" + nextH);
         			} catch(InterruptedException v) {
            				 System.out.println(v);
@@ -386,38 +400,5 @@ public class Router extends Device// implements Runnable
         this.sendPacket(etherPacket, outIface);
     }
 
-
-/*class MyThread extends Thread {
-
-    private int nextHop;
-    private ArpCache arpCache;
-
-    public void MyThread(int to, ArpCache arpCache) {
-        this.nextHop = to;
-	this.arpCache = arpCache;
-    }
-
-    @Override
-	public void run() {
-        	try {
-                	System.out.println("1) Checking for "+nextH);
-                        Thread.sleep(1000);
-                        if(arpCache.lookup(nextH) != null){
-                        	System.out.println("Holy shit we found it!");
-                                return;
-                        }
-                        System.out.println("2) Checking again for" + nextH);
-                        Thread.sleep(1000);
-                                        if(arpCache.lookup(nextH) != null){
-                                                System.out.println("Holy shit we found it!");
-                                                return;
-                                        }
-
-                                        System.out.println("3) Checking again for" + nextH);
-                                } catch(InterruptedException v) {
-                                         System.out.println(v);
-     		}
-	}
-*/
 }
 

@@ -369,24 +369,30 @@ public class Router extends Device// implements Runnable
 	
         			try {
 					sendPacket(atomicEtherPacket.get(), atomicIface.get());
-            				System.out.println("1) Checking for "+nextH);
+            				//System.out.println("1) Checking for "+nextH);
 					Thread.sleep(1000);
 					if(atomicCache.get().lookup(nextH) != null){
-						System.out.println("Holy shit we found it!");
+						System.out.println("Found it!");
 						return;
 					}
 
 					sendPacket(atomicEtherPacket.get(), atomicIface.get());
-					System.out.println("2) Checking again for" + nextH);
+					//System.out.println("2) Checking again for" + nextH);
             				Thread.sleep(1000);                
                                         if(atomicCache.get().lookup(nextH) != null){
-                                                System.out.println("Holy shit we found it!");
+                                                System.out.println("Found it!");
                                                 return;
                                         }
 					
 					sendPacket(atomicEtherPacket.get(), atomicIface.get());
-					System.out.println("3) Checking again for" + nextH);
-        			} catch(InterruptedException v) {
+					//System.out.println("3) Checking again for" + nextH);
+        				Thread.sleep(1000);
+                                        if(atomicCache.get().lookup(nextH) != null){
+                                                System.out.println("Found it!");
+                                                return;
+                                        }
+
+				} catch(InterruptedException v) {
            				 System.out.println(v);
         			}
     			}  

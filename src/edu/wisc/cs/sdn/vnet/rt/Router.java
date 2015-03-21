@@ -135,7 +135,7 @@ public class Router extends Device// implements Runnable
 		byte original[] = IpPacket.serialize();	
 		byte dataBytes[] = new byte[4 + (echo ? payLoadLen : IpPacket.getHeaderLength() * 4 + 8)];
 
-		System.out.println("echo: "+echo+ " lens: "+original.length+" | "+dataBytes.length);
+		//System.out.println("echo: "+echo+ " lens: "+original.length+" | "+dataBytes.length);
 	
 		for( int i = 0; i < (echo ? payLoadLen : (IpPacket.getHeaderLength() * 4 + 8)); i++)
 			dataBytes[i + 4] = original[i];
@@ -175,8 +175,6 @@ public class Router extends Device// implements Runnable
         	{ return; }
         	ether.setDestinationMACAddress(arpEntry.getMac().toBytes());
 
-		//System.out.println("ether src: "+outIface.getMacAddress().toBytes()+"ether dest: "+arpEntry.getMac().toBytes());
-		//System.out.println("ether src: "+ip.getSourceAddress()+"ip dest: "+ip.getDestinationAddress()); 
 		System.out.println("sent packet:" + ether);
         	this.sendPacket(ether, outIface);
 	}
@@ -198,7 +196,7 @@ public class Router extends Device// implements Runnable
 				int address = senderProtocol.getInt();
 				atomicCache.get().insert(new MACAddress(arpPacket.getSenderHardwareAddress()), address);					
 			
-				System.out.println("IP addr we're looking at:" + address);
+				//System.out.println("IP addr we're looking at:" + address);
 	
 				Queue packetsToSend = packetQueues.get(new Integer(address));
 				while(packetsToSend != null && packetsToSend.peek() != null){
@@ -276,12 +274,15 @@ public class Router extends Device// implements Runnable
         	if (ipPacket.getDestinationAddress() == iface.getIpAddress())
         	{ 
 			byte protocol = ipPacket.getProtocol();
+			System.out.println("ipPacket protol: "+protocol);
 			if(protocol == IPv4.PROTOCOL_UDP || protocol == IPv4.PROTOCOL_TCP)
-				this.sendError(etherPacket, inIface, 11, 3, false);
+				this.sendError(etherPacket, inIface, 3, 3, false);
 			else if(protocol == IPv4.PROTOCOL_ICMP){
 				ICMP icmp = (ICMP)ipPacket.getPayload();
-				if(icmp.getIcmpType() == 8)
+				if(icmp.getIcmpType() == 8){
+					System.out.println("echoing");
 					this.sendError(etherPacket, inIface, 0, 0, true);
+				}				
 			}
 			return; 
 		}
@@ -317,8 +318,9 @@ public class Router extends Device// implements Runnable
         if (outIface == inIface)
         { return; }
 
-        // Set source MAC address in Ethernet header
-        etherPacket.setSourceMACAddress(outIface.getMacAddress().toBytes());
+        // Set source MAC address in Ethernet heade
+	MACAddress out = outIface.getMacAddress();
+        etherPacket.setSourceMACAddress(out.toBytes());
 
         // If no gateway, then nextHop is IP destination
         int nextHop = bestMatch.getGatewayAddress();
@@ -343,6 +345,7 @@ public class Router extends Device// implements Runnable
 
 		final AtomicReference<Ethernet> atomicEtherPacket = new AtomicReference(new Ethernet());
 		final AtomicReference<Iface> atomicIface = new AtomicReference(outIface);
+		final AtomicReference<Ethernet> atomicInPacket = new AtomicReference(etherPacket);
 		//Ethernet ether = new Ethernet();
 		atomicEtherPacket.get().setEtherType(Ethernet.TYPE_ARP);
 		atomicEtherPacket.get().setSourceMACAddress(inIface.getMacAddress().toBytes());	
@@ -355,6 +358,7 @@ public class Router extends Device// implements Runnable
 
 		if(!packetQueues.containsKey(next)){
 			packetQueues.put(next, new LinkedList());
+			System.out.println("making new one");
 		}	
 		Queue nextHopQueue = packetQueues.get(next);
 		nextHopQueue.add(etherPacket);
@@ -391,7 +395,7 @@ public class Router extends Device// implements Runnable
                                                 System.out.println("Found it!");
                                                 return;
                                         }
-
+					sendError(atomicInPacket.get(), atomicIface.get(), 3, 1, false);
 				} catch(InterruptedException v) {
            				 System.out.println(v);
         			}

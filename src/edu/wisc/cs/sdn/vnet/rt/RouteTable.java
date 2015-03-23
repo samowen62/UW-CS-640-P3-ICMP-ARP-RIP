@@ -167,6 +167,20 @@ public class RouteTable
             this.entries.add(entry);
         }
 	}
+
+	public void insert(int dstIp, int gwIp, int maskIp, Iface iface, int cost)
+	{
+		RouteEntry entry = new RouteEntry(dstIp, gwIp, maskIp, iface);
+		entry.setParent(this);
+		entry.setCost(cost);
+        	
+		synchronized(this.entries)
+        	{
+            		this.entries.add(entry);
+            		if (gwIp != 0)
+            		{ entry.start(); }
+        	}
+	}
 	
 	/**
 	 * Remove an entry from the route table.
@@ -208,6 +222,40 @@ public class RouteTable
         return true;
 	}
 
+	 public List<RouteEntry> getAll()
+    { return this.entries; }
+	
+	public String toString()
+	{
+        	synchronized(this.entries)
+        	{ 
+            		if (0 == this.entries.size())
+            		{ return " WARNING: route table empty"; }
+            
+            		String result = "Destination\tGateway\t\tMask\t\tIface\n";
+            		for (RouteEntry entry : entries)
+            		{ result += entry.toString()+"\n"; }
+			    return result;
+        	}
+	}
+
+	public boolean update(int dstIp, int maskIp, int gwIp, 
+            Iface iface, int cost)
+		{
+        	synchronized(this.entries)
+        	{
+           		RouteEntry entry = this.find(dstIp, maskIp);
+           		if (null == entry)
+           		{ return false; }
+           		if (gwIp != 0)
+            		{ entry.reset(); } // EDIT
+            		entry.setGatewayAddress(gwIp);
+            		entry.setInterface(iface);
+            		entry.setCost(cost);
+        	}
+        	return true;
+	}
+
     /**
 	 * Find an entry in the route table.
 	 * @param dstIP destination IP of the entry to find
@@ -227,18 +275,4 @@ public class RouteTable
         }
         return null;
     }
-	
-	public String toString()
-	{
-        synchronized(this.entries)
-        { 
-            if (0 == this.entries.size())
-            { return " WARNING: route table empty"; }
-            
-            String result = "Destination\tGateway\t\tMask\t\tIface\n";
-            for (RouteEntry entry : entries)
-            { result += entry.toString()+"\n"; }
-		    return result;
-        }
-	}
 }
